@@ -90,7 +90,11 @@ CMake 构建后会自动将 `models/` 和 `ppocrv6_config.json` 复制到产物�
 
 - **ncnn 20241226** 和 **OpenCV 4.11** 静态库已包含在仓库的 `third_party/` 目录中
 - **Clipper2** 多边形裁剪库在 `ppocrv6_engine/3rdparty/clipper2/` 中
-- 翻译资源（`mtranserver.exe`、`mtran_models/`、`mtran_config/`）体积约 1.1GB，已内置于发布版 exe，未纳入 git
+- 翻译资源（`mtranserver.exe`、`mtran_models/`、`mtran_config/`）体积较大未纳入 git，
+  需从 [Release 附件](https://github.com/SeanWang114514/PP-OCRv6-Tools/releases/latest)
+  下载 `PP-OCRv6-build-deps-mtran.zip` 解压回 `translation_assets/`
+
+> 完整的依赖还原步骤见 **[BUILD-DEPENDENCIES.md](BUILD-DEPENDENCIES.md)**。
 
 ---
 

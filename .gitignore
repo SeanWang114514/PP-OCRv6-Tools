@@ -45,3 +45,9 @@ native-dist-arm64/
 third_party-src/
 third_party/ncnn-arm64/
 third_party/opencv-arm64/
+
+# ---- release staging & packaged build-deps (published as Release assets) ----
+release-staging/
+build-assets/
+PP-OCRv6-build-deps-*.zip
+PP-OCRv6-Desktop-v*.zip
