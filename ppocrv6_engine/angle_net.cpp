@@ -70,22 +70,17 @@ std::vector<Angle> AngleNet::Cls(const std::vector<cv::Mat> &text_images) const
         angles[i] = Cls(text_images[i]);
     }
 
-    // vote for rotation decisions
-    if (config_.most_angle)
-    {
-        float rot_weight = 0.0f;
-        float no_rot_weight = 0.0f;
-        for (const auto &angle : angles)
-        {
-            if (angle.is_rot)
-                rot_weight += angle.score;
-            else
-                no_rot_weight += angle.score;
-        }
-        bool decision = rot_weight > no_rot_weight;
-        for (auto &angle : angles)
-            angle.is_rot = decision;
-    }
+    // Per-line decision instead of one global verdict. The previous code summed every line's
+    // 0/180 score and forced the winning side onto all lines, so a single noisy or rotated line
+    // flipped the whole selection and the recognised text came out reversed / garbled for rows the
+    // classifier had actually got right. A line is only rotated when the classifier is confident
+    // about that very line; weak lines keep the crop's natural orientation.
+    const float confidence = 0.6f;
+    for (auto &angle : angles)
+        if (angle.score < confidence)
+            angle.is_rot = false;
+
+    (void)config_.most_angle;
 
     return angles;
 }

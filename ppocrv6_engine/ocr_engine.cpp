@@ -163,6 +163,25 @@ std::vector<OCRResult> OCREngine::Run(const cv::Mat &image) const
         text_images[i] = GetRotatedCropImage(image, text_boxes[i].points);
     }
 
+    // A clamped / degenerate box yields an empty crop. Drop it before the classifier and the
+    // recogniser run, otherwise the size mismatch between boxes, angles and lines below silently
+    // mixes up which text belongs to which box.
+    {
+        std::vector<TextBox> kept_boxes;
+        std::vector<cv::Mat> kept_images;
+        kept_boxes.reserve(text_boxes.size());
+        kept_images.reserve(text_images.size());
+        for (size_t i = 0; i < text_boxes.size(); ++i)
+        {
+            if (text_images[i].empty() || text_images[i].cols < 2 || text_images[i].rows < 2)
+                continue;
+            kept_boxes.emplace_back(std::move(text_boxes[i]));
+            kept_images.emplace_back(std::move(text_images[i]));
+        }
+        text_boxes.swap(kept_boxes);
+        text_images.swap(kept_images);
+    }
+
     // 2. Handle Angle
     cls_time = static_cast<double>(cv::getTickCount());
 

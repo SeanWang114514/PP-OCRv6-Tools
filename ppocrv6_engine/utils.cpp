@@ -138,16 +138,28 @@ cv::Mat GetRotatedCropImage(const cv::Mat &image, std::vector<cv::Point> points)
     auto [l, r] = std::minmax({points[0].x, points[1].x, points[2].x, points[3].x});
     auto [t, b] = std::minmax({points[0].y, points[1].y, points[2].y, points[3].y});
 
-    cv::Mat crop_image = image(cv::Rect(l, t, r - l, b - t)).clone();
+    // Clamp to the image: a detection box whose unclipped corner lands on the border produced a
+    // cv::Rect outside the matrix, and OpenCV answers that with an exception or a speculative
+    // assertion, which surfaced as "recognition failed" instead of the text on screen.
+    const int cl = std::clamp(l, 0, std::max(0, image.cols - 1));
+    const int ct = std::clamp(t, 0, std::max(0, image.rows - 1));
+    const int cr = std::clamp(r, cl + 1, image.cols);
+    const int cb = std::clamp(b, ct + 1, image.rows);
+    if (cr - cl < 2 || cb - ct < 2)
+        return cv::Mat();
+
+    cv::Mat crop_image = image(cv::Rect(cl, ct, cr - cl, cb - ct)).clone();
 
     for (auto &point : points)
     {
-        point.x -= l;
-        point.y -= t;
+        point.x = std::clamp(point.x - cl, 0, crop_image.cols);
+        point.y = std::clamp(point.y - ct, 0, crop_image.rows);
     }
 
     int crop_w = static_cast<int>(std::sqrt(std::pow(points[0].x - points[1].x, 2) + std::pow(points[0].y - points[1].y, 2)));
     int crop_h = static_cast<int>(std::sqrt(std::pow(points[0].x - points[3].x, 2) + std::pow(points[0].y - points[3].y, 2)));
+    crop_w = std::clamp(crop_w, 1, crop_image.cols);
+    crop_h = std::clamp(crop_h, 1, crop_image.rows);
 
     std::vector<cv::Point2f> src_pts = {
         cv::Point2f(static_cast<float>(points[0].x), static_cast<float>(points[0].y)),
@@ -165,8 +177,11 @@ cv::Mat GetRotatedCropImage(const cv::Mat &image, std::vector<cv::Point> points)
     cv::Mat pers_mat = cv::getPerspectiveTransform(src_pts, dst_pts, cv::DECOMP_LU);
 
     cv::Mat text_image;
+    // INTER_LINEAR, not INTER_NEAREST: a nearest-neighbour warp of a rotated box drops strokes and
+    // mangles CJK glyphs, which is a recognition difference the user perceives as "the text does
+    // not match the picture".
     cv::warpPerspective(crop_image, text_image, pers_mat,
-        cv::Size(crop_w, crop_h), cv::INTER_NEAREST, cv::BORDER_CONSTANT);
+        cv::Size(crop_w, crop_h), cv::INTER_LINEAR, cv::BORDER_REPLICATE);
 
     if (static_cast<float>(text_image.rows) >= text_image.cols * 1.5f)
     {

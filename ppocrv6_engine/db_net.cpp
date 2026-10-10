@@ -135,10 +135,14 @@ std::vector<TextBox> DBNet::FindBoxesFromBitmap(const cv::Mat &pred, const cv::M
         std::vector<cv::Point> text_points;
         for (size_t j = 0; j < min_boxes.size(); ++j)
         {
+            // Axes are mapped with their own ratio. ratio_cols belongs to x and ratio_rows to y;
+            // the legacy ordering worked only because the two ratios were numerically equal, and
+            // broke - as a clipped box on the wrong axis - the moment the resize rounded the two
+            // dimensions differently.
             int x = std::clamp(static_cast<int>(min_boxes[j].x / ratio_cols) - config_.padding,
-                0, img_cols - 2 * config_.padding - 1);
+                0, std::max(0, img_cols - 2 * config_.padding - 1));
             int y = std::clamp(static_cast<int>(min_boxes[j].y / ratio_rows) - config_.padding,
-                0, img_rows - 2 * config_.padding - 1);
+                0, std::max(0, img_rows - 2 * config_.padding - 1));
             text_points.emplace_back(cv::Point{x, y});
         }
         text_boxes.emplace_back(TextBox{std::move(text_points), box_score});

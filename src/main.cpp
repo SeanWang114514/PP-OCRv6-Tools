@@ -259,11 +259,18 @@ std::wstring text;ocrMatEx(in,text,wideUtf8(cfg));
 wprintf(L"[max_side_len=%d in=%dx%d] %ls\n",side?side:1024,in.cols,in.rows,text.c_str());
 writeTextFile(outDir/(std::to_wstring(side?side:1024)+L"_ocrtest.txt"),wideUtf8(text));}
 return 0;}
-if(mode==L"--capture"){loadSettings();updateBrushes();captureDesktop();
+if(mode==L"--capture"){loadSettings();updateBrushes();
+// Create and SHOW the main window first. This is the decisive regression test for the original
+// defect: if the snapshot still contains this window, the "recognised text does not match the
+// picture" symptom is back.
+HINSTANCE hi=GetModuleHandleW(nullptr);WNDCLASSEXW c{};c.cbSize=sizeof(c);c.hInstance=hi;c.lpszClassName=MAIN_CLASS;c.lpfnWndProc=mainProc;RegisterClassExW(&c);
+mainWnd=CreateWindowW(MAIN_CLASS,L"PP-OCRv6 Desktop",WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU,60,60,760,420,nullptr,nullptr,hi,nullptr);
+ShowWindow(mainWnd,SW_SHOW);SetForegroundWindow(mainWnd);for(int i=0;i<60;++i){MSG mm{};while(PeekMessageW(&mm,nullptr,0,0,PM_REMOVE)){TranslateMessage(&mm);DispatchMessageW(&mm);}Sleep(15);}
+bool visibleBefore=IsWindowVisible(mainWnd)!=0;captureDesktop();bool visibleAfter=IsWindowVisible(mainWnd)!=0;
 if(!st.bmp)return 5;int x=GetSystemMetrics(SM_XVIRTUALSCREEN),y=GetSystemMetrics(SM_YVIRTUALSCREEN),w=GetSystemMetrics(SM_CXVIRTUALSCREEN),h=GetSystemMetrics(SM_CYVIRTUALSCREEN);RECT full{0,0,w,h};
 std::vector<unsigned char> d;if(!cropToBmpBytes(full,d))return 6;cv::Mat shot;cropToMat(full,shot);logDump(L"cli_capture",d,full,shot);
 std::wstring text;ocrMat(shot,text);writeTextFile(outDir/L"cli_capture.txt",wideUtf8(text));setClipboardText(text);
-wprintf(L"captured %dx%d (%d,%d) -> %ls\n%ls\n",w,h,x,y,(outDir/L"cli_capture.bmp").c_str(),text.c_str());return 0;}
+wprintf(L"captured %dx%d (%d,%d) windowVisibleBefore=%d after=%d\n%ls\n",w,h,x,y,(int)visibleBefore,(int)visibleAfter,text.c_str());return 0;}
 return 1;}
 int WINAPI wWinMain(HINSTANCE i,HINSTANCE,PWSTR cmd,int show){setDpiAware();
 if(cmd&&(wcsstr(cmd,L"--ocrtest")||wcsstr(cmd,L"--capture"))){int argc=0;LPWSTR* argv=CommandLineToArgvW(GetCommandLineW(),&argc);int rc=runCliMode(argv&&argc>1?argv[1]:L"",argc,argv);if(argv)LocalFree(argv);return rc;}

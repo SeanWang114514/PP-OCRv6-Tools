@@ -111,6 +111,27 @@ ChineseOCRLiteDesktop.exe --selftest
 - `5` — 翻译引擎启动失败
 - `6` — 翻译结果为空
 
+### 截图一致性回归
+
+用于验证「识别结果与截图画面对不上」这一类问题：
+
+```bat
+:: 用指定图片跑 OCR，并在 768/1024/1536 三档检测分辨率下对比
+ChineseOCRLiteDesktop.exe --ocrtest tools\ocr_probe\orient.png
+
+:: 复刻一次真实抓屏：先显示主窗口，再按截图流程抓屏，最后输出识别文本
+ChineseOCRLiteDesktop.exe --capture
+```
+
+- `--ocrtest` 把结果写入 `%LOCALAPPDATA%\PP-OCRv6 Desktop\logs\<分辨率>_ocrtest.txt`。
+  `tools/ocr_probe/orient.png` 含一行正常文本 + 一行 180° 倒置文本 + 一行小字，
+  用于验证行方向分类是否按行独立判断。
+- `--capture` 打印 `windowVisibleBefore/after`：抓屏前主窗口为可见、抓屏后应为隐藏，
+  说明抓屏确实发生在隐藏自身窗口之后。
+- 设 `PPOCR_DEBUG=1` 会把喂给引擎的原始像素与识别文本一并 dump 到
+  `%LOCALAPPDATA%\PP-OCRv6 Desktop\logs\`，用于逐像素复现一次坏结果。默认关闭，
+  应用不会留下持久截图文件。
+
 ---
 
 ## 📁 项目结构
@@ -138,6 +159,7 @@ ChineseOCRLiteDesktop.exe --selftest
 ├── CMakeLists.txt                # CMake 构建配置
 ├── ppocrv6_config.json           # OCR 引擎配置
 ├── build_native.bat              # 一键构建脚本
+├── tools/ocr_probe/orient.png    # 截图/行方向回归用的测试图
 └── deploy_verify.ps1             # 自动化验证脚本
 ```
 
@@ -148,6 +170,8 @@ ChineseOCRLiteDesktop.exe --selftest
 ```
 CMake + MSVC x64 Release 构建：PASS
 --selftest（OCR 模型加载 + 英→中 / 中→英翻译）：PASS（exit 0）
+--ocrtest tools/ocr_probe/orient.png（768 / 1024 / 1536 三档，含 180° 倒置行）：PASS
+--capture（抓屏前主窗口可见、抓屏后已隐藏，截图中不含工具自身窗口）：PASS
 GUI 保活测试：PASS
 结果弹窗自动化验证（deploy_verify.ps1）：PASS
 ```
